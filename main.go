@@ -134,15 +134,14 @@ func InitTasks() TasksList {
 }
 
 type Executable interface {
-	Execute(args []string, tasks *TasksList)
+	Execute(args []string, tasks *TasksList) error
 }
 
 type AddCommand struct{}
 
-func (add AddCommand) Execute(args []string, tasks *TasksList) {
+func (add AddCommand) Execute(args []string, tasks *TasksList) error {
 	if len(args) < 1 {
-		fmt.Println("Missing task description")
-		os.Exit(1)
+		return errors.New("Missing task description")
 	}
 
 	task := Task{Description: args[0], Done: false, Id: tasks.NextID()}
@@ -150,14 +149,15 @@ func (add AddCommand) Execute(args []string, tasks *TasksList) {
 	tasks.Append(task)
 
 	tasks.Persist()
+
+	return nil
 }
 
 type ListCommand struct{}
 
-func (list ListCommand) Execute(_ []string, tasks *TasksList) {
+func (list ListCommand) Execute(_ []string, tasks *TasksList) error {
 	if len(tasks.Tasks) == 0 {
-		fmt.Println("No tasks found!")
-		return
+		return errors.New("No tasks founda!")
 	}
 
 	for _, task := range tasks.Tasks {
@@ -169,57 +169,57 @@ func (list ListCommand) Execute(_ []string, tasks *TasksList) {
 				ColorRed, task.Id, task.Description, ColorReset)
 		}
 	}
+
+	return nil
 }
 
 type CompleteCommand struct{}
 
-func (complete CompleteCommand) Execute(args []string, tasks *TasksList) {
+func (complete CompleteCommand) Execute(args []string, tasks *TasksList) error {
 	if len(args) < 1 {
-		fmt.Println("Missing task id")
-		os.Exit(1)
+		return errors.New("Missing task id")
 	}
 
 	id, err := strconv.Atoi(args[0])
 
 	if err != nil {
-		fmt.Printf("Invalid task ID: %s (must be a number)\n", args[0])
-		os.Exit(1)
+		return fmt.Errorf("Invalid task ID: %s (must be a number)\n", args[0])
 	}
 
 	task, err := tasks.Find(id)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	task.Done = true
 
 	tasks.Persist()
+
+	return nil
 }
 
 type RemoveCommand struct{}
 
-func (remove RemoveCommand) Execute(args []string, tasks *TasksList) {
+func (remove RemoveCommand) Execute(args []string, tasks *TasksList) error {
 	if len(args) < 1 {
-		fmt.Println("Missing task ID")
-		os.Exit(1)
+		return errors.New("Missing task ID")
 	}
 
 	id, err := strconv.Atoi(args[0])
 
 	if err != nil {
-		fmt.Printf("Invalid task ID: %s (must be a number)\n", args[0])
-		os.Exit(1)
+		return fmt.Errorf("Invalid task ID: %s (must be a number)\n", args[0])
 	}
 
 	err = tasks.Remove(id)
 
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	tasks.Persist()
+
+	return nil
 }
 
 func main() {
@@ -245,5 +245,8 @@ func main() {
 
 	tasks := InitTasks()
 
-	command.Execute(os.Args[2:], &tasks)
+	if err := command.Execute(os.Args[2:], &tasks); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
